@@ -1,153 +1,43 @@
-# AERIAL BOT PROJECT - NOTES FOR CLAUDE
+# Vutrium Bot Notes
 
-## PROJECT STATUS: READY TO TEST (13.85M steps trained)
+This repository now focuses solely on a Vutrium-compatible Rocket League bot.
+Everything below is scoped to running inference through the Vutrium SDK DLL
+injector—training notes and legacy aerial content were removed to start fresh.
 
----
+## Key files
+- `run_vutrium_bot.py` — CLI runner that injects the SDK, spins up a bot per
+  local player, and streams controls back to Rocket League.
+- `vutrium_bot.py` — Fresh bot implementation with a compact observation
+  pipeline and lightweight policy network sized to the loaded checkpoint.
+- `vutrium_checkpoint.py` — Utility for resolving the newest `.pt`/`.pth`
+  checkpoint from an override path, environment variable, or local
+  `checkpoints`/`models`/`weights` directories.
+- `requirements.txt` — Python dependencies; the Vutrium SDK binaries must be
+  placed beside the runner (`Vutrium.dll` + `VutriumSDK.pyd`).
 
-## QUICK FACTS:
-- **Student:** Aiden at Embry-Riddle (Daytona Beach)
-- **Goal:** Train RL bot to do aerials using reinforcement learning
-- **Current Progress:** 13.85M steps (good aerial attempts, needs 25M+ for strong play)
-- **Method:** RLGym-PPO training in RocketSim, deploy via VutriumSDK DLL injection
-
----
-
-## PYTHON ENVIRONMENTS:
-
-### Old env (Python 3.10.11):
-- Location: `rl_bot_env/`
-- Used for training (still running)
-- Has PyTorch nightly with RTX 5060 support (sm_120)
-- **DO NOT TOUCH - training is happening here**
-
-### New env (Python 3.11):
-- Location: `rl_bot_env_311/`
-- Created for VutriumSDK compatibility (.pyd compiled for cp311)
-- Installing PyTorch stable + rlgym-ppo
-- **USE THIS for running the bot in Rocket League**
-
----
-
-## KEY FILES:
-
-### Training:
-- `train.py` - Main training script (CURRENTLY RUNNING, 13.8M+ steps)
-- `rewards.py` - Aerial-focused reward function
-- `data/checkpoints/rlgym-ppo-run-1764991602082838500/` - Checkpoint directory
-  - Latest: `13850000/PPO_POLICY.pt`
-
-### Deployment:
-- `run_aerial_bot.py` - Runs bot in real Rocket League (uses Python 3.11 env)
-- `aerial_bot.py` - Bot class that loads trained model
-- `VutriumSDK.pyd` - DLL injection library (cp311 version, renamed correctly)
-
-### Utilities:
-- `check_progress.py` - Check training progress
-- `HOW_TO_USE.txt` - User guide
-- `example_client (1).py` - Original Nexto example from Vutrium
-
----
-
-## HARDWARE:
-- GPU: NVIDIA RTX 5060 (sm_120, Blackwell architecture)
-- Issue: RTX 5060 too new for stable PyTorch
-- Solution: Using PyTorch nightly for training (Python 3.10 env)
-
----
-
-## TRAINING STATS (Last seen):
-```
-Cumulative Timesteps: 13,800,000
-Policy Reward: 13.17521
-Collected Steps/sec: 1,867
-Overall Steps/sec: 1,801
-```
-
----
-
-## HOW TO RUN BOT IN ROCKET LEAGUE:
-
-1. Make sure Rocket League is running
-2. Activate Python 3.11 env:
+## Running the bot (Windows example)
+1. Ensure Rocket League is running before injection.
+2. Open a terminal in the repo directory and activate the environment that has
+   PyTorch, rlbot, and rlgym installed.
+3. Provide a checkpoint via one of:
+   - `--checkpoint /path/to/your/model.pt`
+   - `set VUTRIUM_CHECKPOINT=C:\\path\\to\\folder` (newest `.pt`/`.pth` is
+     selected automatically)
+   - placing a `.pt`/`.pth` under a nearby `checkpoints/`, `models/`, or
+     `weights/` directory.
+4. Run:
    ```
-   cd C:\Users\Aiden\Documents\aerial_bot
-   rl_bot_env_311\Scripts\activate
+   python run_vutrium_bot.py --checkpoint path\to\policy.pt
    ```
-3. Run:
-   ```
-   python run_aerial_bot.py
-   ```
-4. Join any match - bot takes control
-5. Set the checkpoint location via the `AERIAL_BOT_CHECKPOINT` environment
-   variable (can point to a specific `.pt`/`.pth` file or a directory with
-   checkpoints). `~` and relative paths are supported and normalized.
-   If unset, the bot will look for checkpoints in a `checkpoints/` folder next
-   to `rlbot_bot.py`.
+5. Join a match; the runner will instantiate a bot for the first local player
+   and keep it updated every tick.
 
-## PUSHING CHANGES TO GITHUB FROM THIS ENVIRONMENT:
-
-- This environment cannot log into your GitHub account directly (no interactive
-  web sign-in). To push changes yourself:
-  1. Run `git status` to review modifications.
-  2. Commit locally: `git commit -am "<message>"`.
-  3. If needed, add the remote with a temporary fine-grained token:
-     `git remote add origin https://<username>:<token>@github.com/<owner>/<repo>.git`.
-  4. Push your branch: `git push origin <branch>`.
-- Use the smallest scopes and a short expiration for the token, then revoke it
-  after pushing.
-
----
-
-## NEXT STEPS:
-- [ ] Finish installing packages in Python 3.11 env
-- [ ] Test bot in Rocket League
-- [ ] Continue training to 25M+ steps for better aerials
-- [ ] Maybe train to 50M for advanced aerial play
-
----
-
-## IMPORTANT NOTES:
-
-### VutriumSDK:
-- Not publicly available (proprietary)
-- User has .pyd file from intgamer0815 (Discord)
-- Works by DLL injection into RL process
-- Requires Rocket League to be running BEFORE starting script
-
-### Training Checkpoints:
-- Saved every 100k steps
-- Format: `data/checkpoints/[run-id]/[steps]/PPO_POLICY.pt`
-- Policy network: [256, 256, 256] fully connected
-- Input: 92 features (DefaultObs)
-- Output: 90 actions (LookupTableAction)
-
-### Known Issues:
-- Training uses Python 3.10 (for PyTorch nightly)
-- Deployment uses Python 3.11 (for VutriumSDK.pyd)
-- Must keep them separate!
-
-### Running the aerial bot via Vutrium
-1) Launch Rocket League and keep it running.
-2) Ensure ``Vutrium.dll``/``VutriumSDK.pyd`` live next to the scripts (provided by Vutrium).
-3) Provide a trained checkpoint in ``./checkpoints`` or set ``AERIAL_BOT_CHECKPOINT=/path/to/model.pt``. You can also pass ``--checkpoint /path`` to override both.
-4) Run:
-
-```bash
-python run_aerial_bot.py [--checkpoint /path/to/model_or_directory]
-```
-
----
-
-## REWARD FUNCTION:
-Bot is rewarded for:
-- Being airborne (height-based)
-- Being airborne when ball is high
-- Touching ball (goals weighted 10x)
-
-Bot gets penalized for:
-- Staying grounded when ball is high
-
----
-
-**Last Updated:** 2025-12-06
-**Training Started:** ~3-4 hours ago (based on 13.8M steps at ~1800 steps/sec)
+## Troubleshooting
+- **SDK import fails**: confirm `Vutrium.dll` and `VutriumSDK.pyd` sit next to
+  `run_vutrium_bot.py` and that Rocket League is already running.
+- **No checkpoint found**: pass `--checkpoint`, set `VUTRIUM_CHECKPOINT`, or
+  drop a `.pt`/`.pth` file into `checkpoints/`, `models/`, or `weights/` near
+  the scripts.
+- **Controls feel random**: the runner will still launch even if checkpoint load
+  fails; check the console for load errors and verify the policy weights match
+  the network shape (17-dim observation, LookupTableAction output space).
