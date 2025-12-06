@@ -1,50 +1,62 @@
-from rlgym_ppo import Learner
-from rlgym_ppo.util import RLGymV2GymWrapper
+"""Training entrypoint for the aerial bot using RLGym-PPO."""
+
+import numpy as np
 from rlgym.api import RLGym
+from rlgym.rocket_league import common_values
 from rlgym.rocket_league.action_parsers import LookupTableAction, RepeatAction
 from rlgym.rocket_league.done_conditions import GoalCondition, NoTouchTimeoutCondition
 from rlgym.rocket_league.obs_builders import DefaultObs
 from rlgym.rocket_league.reward_functions import CombinedReward, GoalReward, TouchReward
 from rlgym.rocket_league.sim import RocketSimEngine
-from rlgym.rocket_league.state_mutators import MutatorSequence, FixedTeamSizeMutator, KickoffMutator
-from rlgym.rocket_league import common_values
-import numpy as np
+from rlgym.rocket_league.state_mutators import (
+    FixedTeamSizeMutator,
+    KickoffMutator,
+    MutatorSequence,
+)
+from rlgym_ppo import Learner
+from rlgym_ppo.util import RLGymV2GymWrapper
 
 from rewards import AerialFocusedReward
+
 
 def build_rocketsim_env():
     spawn_opponents = True
     team_size = 1
     tick_skip = 8
     timeout_seconds = 10
-    
+
     action_parser = RepeatAction(LookupTableAction(), repeats=tick_skip)
     termination_cond = GoalCondition()
     truncation_cond = NoTouchTimeoutCondition(timeout_seconds)
-    
-    # Combine rewards - THIS IS THE FIX
+
+    # Combine rewards - tilt toward aerial/SSL skills while still scoring goals.
     aerial_reward_weight = (AerialFocusedReward(), 1.0)
     goal_reward_weight = (GoalReward(), 10.0)
     touch_reward_weight = (TouchReward(), 0.1)
-    
+
     rewards_and_weights = (aerial_reward_weight, goal_reward_weight, touch_reward_weight)
     reward_fn = CombinedReward(*rewards_and_weights)  # Unpack with *
-    
+
     obs_builder = DefaultObs(
         zero_padding=None,
-        pos_coef=np.asarray([1 / common_values.SIDE_WALL_X, 
-                             1 / common_values.BACK_NET_Y, 
-                             1 / common_values.CEILING_Z]),
+        pos_coef=np.asarray([
+            1 / common_values.SIDE_WALL_X,
+            1 / common_values.BACK_NET_Y,
+            1 / common_values.CEILING_Z,
+        ]),
         ang_coef=1 / np.pi,
         lin_vel_coef=1 / common_values.CAR_MAX_SPEED,
-        ang_vel_coef=1 / common_values.CAR_MAX_ANG_VEL
+        ang_vel_coef=1 / common_values.CAR_MAX_ANG_VEL,
     )
-    
+
     state_mutator = MutatorSequence(
-        FixedTeamSizeMutator(blue_size=team_size, orange_size=team_size if spawn_opponents else 0),
-        KickoffMutator()
+        FixedTeamSizeMutator(
+            blue_size=team_size,
+            orange_size=team_size if spawn_opponents else 0,
+        ),
+        KickoffMutator(),
     )
-    
+
     env = RLGym(
         state_mutator=state_mutator,
         obs_builder=obs_builder,
@@ -52,10 +64,11 @@ def build_rocketsim_env():
         reward_fn=reward_fn,
         termination_cond=termination_cond,
         truncation_cond=truncation_cond,
-        transition_engine=RocketSimEngine()
+        transition_engine=RocketSimEngine(),
     )
-    
+
     return RLGymV2GymWrapper(env)
+
 
 if __name__ == "__main__":
     learner = Learner(
@@ -80,7 +93,10 @@ if __name__ == "__main__":
         device="cuda",
         render=False,
     )
-    
+
     print("Starting training...")
     print("Press Ctrl+C to stop")
-    learner.learn()
+    try:
+        learner.learn()
+    except KeyboardInterrupt:
+        print("\nTraining interrupted by user. Latest checkpoint is safe to use.")

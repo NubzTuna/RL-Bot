@@ -1,17 +1,17 @@
-"""
-RLBot-compatible wrapper for your trained aerial bot
-"""
+"""RLBot-compatible wrapper for your trained aerial bot."""
+from pathlib import Path
+
 from rlbot.agents.base_agent import BaseAgent, SimpleControllerState
+
 from aerial_bot import AerialBot
+from checkpoint_utils import resolve_checkpoint_path
 
 
 class RLBotAerialBot(BaseAgent):
     def __init__(self, name, team, index):
         super().__init__(name, team, index)
-        
-        # Path to your latest checkpoint
-        checkpoint_path = r"C:\Users\Aiden\Documents\aerial_bot\data\checkpoints\rlgym-ppo-run-1764991602082838500\15350000\PPO_POLICY.pt"
-        
+
+        checkpoint_path = resolve_checkpoint_path(Path(__file__))
         self.bot = AerialBot(name, team, index, checkpoint_path)
         
     def initialize_agent(self):

@@ -1,8 +1,4 @@
-"""
-ULTIMATE FLIP RESET + AIR DRIBBLE REWARD
-Combines flip reset mechanics with air dribble techniques
-Built from C++ air dribble reward system
-"""
+"""Reward functions for aerial-focused Rocket League training."""
 import numpy as np
 from typing import List, Dict, Any
 from rlgym.api import RewardFunction, AgentID
@@ -11,6 +7,94 @@ from rlgym.rocket_league.common_values import (
     BALL_RADIUS, CAR_MAX_SPEED, CEILING_Z, BALL_MAX_SPEED,
     SIDE_WALL_X, BACK_NET_Y, GOAL_HEIGHT, BLUE_GOAL_BACK, ORANGE_GOAL_BACK
 )
+
+
+class AerialFocusedReward(RewardFunction):
+    """Simple, stable reward tuned for aerial training and SSL aspirations.
+
+    The signal leans heavily on mechanics that transfer to real play:
+    - Stay airborne (scaled by height).
+    - Get above the ball when it is high to encourage vertical play.
+    - Move toward the ball while airborne.
+    - Touch the ball in the air (forwards/backward compatibility with different
+      game state implementations by using ``ball_touched`` when available).
+    - Lightly penalize sitting on the ground when the ball is elevated.
+    """
+
+    def reset(
+        self,
+        agents: List[AgentID],
+        initial_state: GameState,
+        shared_info: Dict[str, Any],
+    ) -> None:
+        # No per-agent state required; included for API completeness.
+        return None
+
+    def get_rewards(
+        self,
+        agents: List[AgentID],
+        state: GameState,
+        is_terminated: Dict[AgentID, bool],
+        is_truncated: Dict[AgentID, bool],
+        shared_info: Dict[str, Any],
+    ) -> Dict[AgentID, float]:
+        rewards: Dict[AgentID, float] = {}
+
+        ball_pos = state.ball.position
+        ball_height = float(ball_pos[2])
+        ball_vel = state.ball.linear_velocity
+
+        for agent in agents:
+            car = state.cars[agent]
+
+            car_pos = car.physics.position
+            car_vel = car.physics.linear_velocity
+            car_height = float(car_pos[2])
+
+            reward = 0.0
+
+            # Encourage sustained aerial time with diminishing returns.
+            if not car.on_ground:
+                height_ratio = min(car_height / CEILING_Z, 1.0)
+                reward += 0.6 * height_ratio
+
+                # Reward chasing the ball while airborne.
+                to_ball = ball_pos - car_pos
+                dist_to_ball = float(np.linalg.norm(to_ball)) + 1e-6
+                car_speed = float(np.linalg.norm(car_vel)) + 1e-6
+
+                alignment = np.dot(to_ball / dist_to_ball, car_vel / car_speed)
+                reward += max(alignment, 0.0) * 0.15
+
+                # Extra reward for being above the ball when it is high.
+                if ball_height > 500:
+                    vertical_gap = max(car_height - ball_height, 0.0)
+                    reward += 0.25 * min(vertical_gap / CEILING_Z, 1.0)
+
+            else:
+                # Discourage chilling on the ground when the ball is air dribbable.
+                if ball_height > 800:
+                    reward -= 0.1
+
+            # Reward aerial ball touches across differing gym implementations.
+            touched = False
+            if hasattr(car, "ball_touched"):
+                touched = bool(car.ball_touched)
+            elif hasattr(state.ball, "latest_touch"):
+                latest_touch = getattr(state.ball, "latest_touch")
+                touched = getattr(latest_touch, "player_index", None) == agent
+
+            if touched and not car.on_ground:
+                reward += 2.0
+
+            # Gentle incentive to keep the ball fast and high when airborne.
+            if not car.on_ground and ball_height > 600:
+                ball_speed = float(np.linalg.norm(ball_vel))
+                reward += min(ball_speed / BALL_MAX_SPEED, 1.0) * 0.05
+
+            rewards[agent] = reward
+
+        return rewards
 
 
 class UltimateAerialReward(RewardFunction):

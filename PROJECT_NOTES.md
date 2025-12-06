@@ -78,6 +78,23 @@ Overall Steps/sec: 1,801
    python run_aerial_bot.py
    ```
 4. Join any match - bot takes control
+5. Set the checkpoint location via the `AERIAL_BOT_CHECKPOINT` environment
+   variable (can point to a specific `.pt`/`.pth` file or a directory with
+   checkpoints). `~` and relative paths are supported and normalized.
+   If unset, the bot will look for checkpoints in a `checkpoints/` folder next
+   to `rlbot_bot.py`.
+
+## PUSHING CHANGES TO GITHUB FROM THIS ENVIRONMENT:
+
+- This environment cannot log into your GitHub account directly (no interactive
+  web sign-in). To push changes yourself:
+  1. Run `git status` to review modifications.
+  2. Commit locally: `git commit -am "<message>"`.
+  3. If needed, add the remote with a temporary fine-grained token:
+     `git remote add origin https://<username>:<token>@github.com/<owner>/<repo>.git`.
+  4. Push your branch: `git push origin <branch>`.
+- Use the smallest scopes and a short expiration for the token, then revoke it
+  after pushing.
 
 ---
 
