@@ -215,23 +215,15 @@ class AerialBot:
         self.checkpoint_path = checkpoint_path
         self.obs_adapter: Optional[_ObservationAdapter] = None
 
-    def _find_latest_checkpoint(self, models_dir):
-        models_path = Path(models_dir)
-        if not models_path.exists():
-            raise FileNotFoundError(f"Models directory not found: {models_dir}")
-
-        checkpoints = list(models_path.rglob("*.pt")) + list(models_path.rglob("*.pth"))
-        if not checkpoints:
-            raise FileNotFoundError(f"No checkpoints found in {models_dir}")
-
-        latest = max(checkpoints, key=lambda p: p.stat().st_mtime)
-        return str(latest)
-
     def initialize_agent(self, field_info=None):
         checkpoint_path = Path(self.checkpoint_path).expanduser().resolve(strict=False)
 
         if checkpoint_path.is_dir():
-            checkpoint_path = Path(self._find_latest_checkpoint(checkpoint_path))
+            # Should already be resolved to a file by checkpoint_utils, but keep a
+            # last-chance resolution for callers that pass a directory manually.
+            from checkpoint_utils import resolve_checkpoint_path
+
+            checkpoint_path = Path(resolve_checkpoint_path(Path(__file__), str(checkpoint_path)))
         elif not checkpoint_path.exists():
             raise FileNotFoundError(
                 "Checkpoint not found. Provide AERIAL_BOT_CHECKPOINT as a file or "

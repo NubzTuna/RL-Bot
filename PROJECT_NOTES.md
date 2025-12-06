@@ -126,6 +126,16 @@ Overall Steps/sec: 1,801
 - Deployment uses Python 3.11 (for VutriumSDK.pyd)
 - Must keep them separate!
 
+### Running the aerial bot via Vutrium
+1) Launch Rocket League and keep it running.
+2) Ensure ``Vutrium.dll``/``VutriumSDK.pyd`` live next to the scripts (provided by Vutrium).
+3) Provide a trained checkpoint in ``./checkpoints`` or set ``AERIAL_BOT_CHECKPOINT=/path/to/model.pt``. You can also pass ``--checkpoint /path`` to override both.
+4) Run:
+
+```bash
+python run_aerial_bot.py [--checkpoint /path/to/model_or_directory]
+```
+
 ---
 
 ## REWARD FUNCTION:

@@ -1,3 +1,5 @@
+import argparse
+import sys
 import time
 from pathlib import Path
 from colorama import just_fix_windows_console, Fore, Style
@@ -7,12 +9,38 @@ from rlbot.utils.structures.game_data_struct import GameTickPacket, FieldInfoPac
 
 from aerial_bot import AerialBot  # YOUR TRAINED BOT!
 from checkpoint_utils import resolve_checkpoint_path
-from VutriumSDK import SDK, download_latest_and_inject, Util
+
+
+def _load_vutrium():
+    try:
+        from VutriumSDK import SDK, download_latest_and_inject, Util  # type: ignore
+
+        return SDK, download_latest_and_inject, Util
+    except Exception as exc:  # pragma: no cover - best effort for runtime clarity
+        print(
+            Fore.RED
+            + "VutriumSDK failed to import. Make sure Vutrium.dll/VutriumSDK.pyd is "
+            "present next to this script and that Rocket League is running."
+            + Style.RESET_ALL
+        )
+        print(f"Import error: {exc}")
+        sys.exit(1)
 
 def main():
+    parser = argparse.ArgumentParser(description="Run the aerial bot via Vutrium")
+    parser.add_argument(
+        "--checkpoint",
+        type=str,
+        default=None,
+        help="Optional path or directory for the policy checkpoint (overrides AERIAL_BOT_CHECKPOINT)",
+    )
+    args = parser.parse_args()
+
     just_fix_windows_console()
     print(Fore.CYAN + "🚀 Aerial Bot - Vutrium Client" + Style.RESET_ALL)
     print(Fore.YELLOW + "Make sure Rocket League is running!" + Style.RESET_ALL)
+
+    SDK, download_latest_and_inject, Util = _load_vutrium()
 
     # 1) Download and inject latest DLL
     if not download_latest_and_inject():
@@ -66,7 +94,7 @@ def main():
             fi = Util.json_to_field_info_packet(field_info_dict)
             team = cars[idx].get('team', 0)
             
-            checkpoint = resolve_checkpoint_path(Path(__file__))
+            checkpoint = resolve_checkpoint_path(Path(__file__), args.checkpoint)
             print(
                 Fore.MAGENTA
                 + f"Creating AerialBot for player: {name} (Team {team}) using {checkpoint}"

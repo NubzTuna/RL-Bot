@@ -1,0 +1,8 @@
+colorama
+numpy
+torch
+rlbot
+rlgym
+rlgym-ppo
+rocketsim
+# VutriumSDK is provided by Vutrium (binary), ensure Vutrium.dll/VutriumSDK.pyd is available.
