@@ -1,10 +1,12 @@
 import time
+from pathlib import Path
 from colorama import just_fix_windows_console, Fore, Style
 
 from rlbot.agents.base_agent import SimpleControllerState
 from rlbot.utils.structures.game_data_struct import GameTickPacket, FieldInfoPacket
 
 from aerial_bot import AerialBot  # YOUR TRAINED BOT!
+from checkpoint_utils import resolve_checkpoint_path
 from VutriumSDK import SDK, download_latest_and_inject, Util
 
 def main():
@@ -64,11 +66,13 @@ def main():
             fi = Util.json_to_field_info_packet(field_info_dict)
             team = cars[idx].get('team', 0)
             
-            print(Fore.MAGENTA + f"Creating AerialBot for player: {name} (Team {team})" + Style.RESET_ALL)
-            
-            # CREATE YOUR AERIAL BOT
-            # Using latest checkpoint at 15.35M steps!
-            checkpoint = "data/checkpoints/rlgym-ppo-run-1764991602082838500/15350000/PPO_POLICY.pt"
+            checkpoint = resolve_checkpoint_path(Path(__file__))
+            print(
+                Fore.MAGENTA
+                + f"Creating AerialBot for player: {name} (Team {team}) using {checkpoint}"
+                + Style.RESET_ALL
+            )
+
             bot = AerialBot(name=name, team=team, index=idx, checkpoint_path=checkpoint)
             bot.initialize_agent(fi)
             bots_by_name[name] = bot
